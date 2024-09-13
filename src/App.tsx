@@ -1,24 +1,13 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { useRef } from 'react';
+import { Canvas } from './Canvas';
 
 function App() {
+  const parent = useRef(null);
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div style={{ width: '100vw', height: '100vh' }}>
+      <div ref={parent} style={{ width: '100%', height: '100%' }}>
+        <Canvas parent={parent} />
+      </div>
     </div>
   );
 }
