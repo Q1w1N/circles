@@ -1,7 +1,7 @@
 import { useRef } from 'react';
-import { Canvas } from './Canvas';
+import { Canvas } from './canvas';
 
-function App() {
+export function App() {
   const parent = useRef(null);
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
@@ -11,5 +11,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
