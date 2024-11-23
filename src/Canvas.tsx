@@ -88,6 +88,7 @@ const drawPulsingCircle = (
 
 export const Canvas = (props: any) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  let frame = 0;
 
   const draw = useCallback((frameCount: number) => {
     const canvas = canvasRef.current;
@@ -148,6 +149,8 @@ export const Canvas = (props: any) => {
         ctx.closePath();
       }
     }
+
+    frame++;
   }, []);
 
   const resizeCanvas = () => {
@@ -157,6 +160,18 @@ export const Canvas = (props: any) => {
       const height = canvasRef.current?.parentElement?.clientHeight ?? 0;
 
       if (canvas.width !== width || canvas.height !== height) {
+        circles.forEach((circle) => {
+          if (circle.pos_x + circle.radius >= width) {
+            circle.pos_x = width - circle.radius;
+            circle.vec_x *= -1;
+          }
+
+          if (circle.pos_y + circle.radius >= height) {
+            circle.pos_y = height - circle.radius;
+            circle.vec_y *= -1;
+          }
+        });
+
         canvas.width = width;
         canvas.height = height;
         return true;
@@ -181,6 +196,17 @@ export const Canvas = (props: any) => {
       window.cancelAnimationFrame(animationFrameId);
     };
   }, [draw]);
+
+  useEffect(() => {
+    const x = setInterval(() => {
+      console.log(frame);
+      frame = 0;
+    }, 1000);
+
+    return () => {
+      clearTimeout(x);
+    };
+  }, []);
 
   return (
     <canvas
