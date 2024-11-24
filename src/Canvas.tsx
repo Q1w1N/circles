@@ -1,7 +1,9 @@
+import { useAtom } from 'jotai';
 import { useCallback, useEffect, useRef } from 'react';
+import { gravityAtom } from './atoms/gravity-atom';
 
 let frameCount = 0;
-let nextRadius = Math.random() * 20;
+let nextRadius = Math.random() * 20 + 2;
 let mPos: number[] = [];
 let circles: Circle[] = [];
 
@@ -86,72 +88,118 @@ const drawPulsingCircle = (
   context.closePath();
 };
 
+const groundFriction = 0.9; // Base horizontal friction when on the ground
+const velocityThreshold = 0.1; // Base minimum velocity to stop horizontal motion
+
 export const Canvas = (props: any) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [gravity] = useAtom(gravityAtom);
   let frame = 0;
 
-  const draw = useCallback((frameCount: number) => {
-    const canvas = canvasRef.current;
-    const gridSpacing = 50;
-    const ctx = canvas?.getContext('2d');
+  const draw = useCallback(
+    (frameCount: number) => {
+      const canvas = canvasRef.current;
+      const gridSpacing = 50;
+      const ctx = canvas?.getContext('2d');
 
-    if (ctx) {
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      if (ctx) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-      // Draw vertical and horizontal grid lines
-      for (let x = 0; x <= ctx.canvas.width; x += gridSpacing) {
-        for (let y = 0; y <= ctx.canvas.height; y += gridSpacing) {
-          // Draw position ID
-          const posId = `(${x}, ${y})`;
-          ctx.fillStyle = 'black';
-          ctx.fillText(posId, x + 4, y + 4);
+        // Draw vertical and horizontal grid lines
+        for (let x = 0; x <= ctx.canvas.width; x += gridSpacing) {
+          for (let y = 0; y <= ctx.canvas.height; y += gridSpacing) {
+            // Draw position ID
+            const posId = `(${x}, ${y})`;
+            ctx.fillStyle = 'black';
+            ctx.fillText(posId, x + 4, y + 4);
 
-          // Draw grid lines
-          ctx.strokeStyle = '#ddd';
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, ctx.canvas.height);
-          ctx.moveTo(0, y);
-          ctx.lineTo(ctx.canvas.width, y);
-          ctx.stroke();
-        }
-      }
-
-      ctx.fillStyle = '#000000';
-      circles.forEach((c) => {
-        // Bounce off the walls
-        if (c.pos_x - c.radius < 0 || c.pos_x + c.radius > ctx.canvas.width) {
-          c.vec_x *= -1; // Reverse direction
-        }
-        if (c.pos_y - c.radius < 0 || c.pos_y + c.radius > ctx.canvas.height) {
-          c.vec_y *= -1; // Reverse direction
-        }
-
-        c.pos_x += c.vec_x;
-        c.pos_y += c.vec_y;
-
-        drawPulsingCircle(ctx, c);
-      });
-
-      // Check for collisions and resolve them
-      for (let i = 0; i < circles.length; i++) {
-        for (let j = i + 1; j < circles.length; j++) {
-          if (areCirclesIntersecting(circles[i], circles[j])) {
-            resolveCollision(circles[i], circles[j]);
+            // Draw grid lines
+            ctx.strokeStyle = '#ddd';
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, ctx.canvas.height);
+            ctx.moveTo(0, y);
+            ctx.lineTo(ctx.canvas.width, y);
+            ctx.stroke();
           }
         }
+
+        ctx.fillStyle = '#000000';
+        circles.forEach((c) => {
+          c.vec_y += gravity;
+
+          // Bounce off the walls
+          if (c.pos_x - c.radius < 0 || c.pos_x + c.radius > ctx.canvas.width) {
+            c.vec_x *= -1; // Reverse direction
+          }
+
+          // Ground bounce
+          if (c.pos_y + c.vec_y + c.radius > ctx.canvas.height) {
+            if (Math.abs(c.vec_y) < c.radius / 2) {
+              // Stop oscillation
+              c.vec_y = 0;
+              c.pos_y = ctx.canvas.height - c.radius;
+
+              // Slow down horizontal motion
+              if (Math.abs(c.vec_x) < velocityThreshold) {
+                c.vec_x = 0;
+              } else {
+                c.vec_x *= groundFriction;
+              }
+            } else {
+              // Standard bounce with energy loss
+              c.vec_y *= -0.8;
+              c.pos_y = ctx.canvas.height - c.radius;
+            }
+          }
+
+          // Ceiling bounce
+          if (c.pos_y + c.vec_y - c.radius < 0) {
+            if (Math.abs(c.vec_y) < c.radius / 2) {
+              // Stop oscillation
+              c.vec_y = 0;
+              c.pos_y = c.radius;
+
+              // Slow down horizontal motion
+              if (Math.abs(c.vec_x) < velocityThreshold) {
+                c.vec_x = 0;
+              } else {
+                c.vec_x *= groundFriction;
+              }
+            } else {
+              // Standard bounce with energy loss
+              c.vec_y *= -0.8;
+              c.pos_y = c.radius;
+            }
+          }
+
+          c.pos_x += c.vec_x;
+          c.pos_y += c.vec_y;
+
+          drawPulsingCircle(ctx, c);
+        });
+
+        // Check for collisions and resolve them
+        for (let i = 0; i < circles.length; i++) {
+          for (let j = i + 1; j < circles.length; j++) {
+            if (areCirclesIntersecting(circles[i], circles[j])) {
+              resolveCollision(circles[i], circles[j]);
+            }
+          }
+        }
+
+        if (mPos.length > 1) {
+          ctx.beginPath();
+          ctx.arc(mPos[0], mPos[1], nextRadius, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.closePath();
+        }
       }
 
-      if (mPos.length > 1) {
-        ctx.beginPath();
-        ctx.arc(mPos[0], mPos[1], nextRadius, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.closePath();
-      }
-    }
-
-    frame++;
-  }, []);
+      frame++;
+    },
+    [gravity]
+  );
 
   const resizeCanvas = () => {
     const canvas = canvasRef.current;
@@ -225,7 +273,7 @@ export const Canvas = (props: any) => {
           vec_x: Math.random() * 4 - 2,
           vec_y: Math.random() * 4 - 2,
         });
-        nextRadius = Math.random() * 20;
+        nextRadius = Math.random() * 20 + 2;
       }}
       width={'100%'}
       height={'100%'}
