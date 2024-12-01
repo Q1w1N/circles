@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { gravityAtom } from './atoms/gravity-atom';
 
 let frameCount = 0;
-let nextRadius = Math.random() * 20 + 2;
+let nextRadius = Math.random() * 20 + 10;
+let nextColor = getRandomBrightColor();
 let mPos: number[] = [];
 let circles: Circle[] = [];
 
@@ -14,7 +15,21 @@ type Circle = {
   vec_x: number;
   vec_y: number;
   radius: number;
+  color: string;
 };
+
+function getRandomBrightColor() {
+  // Generate random values for RGB components
+  let r = Math.floor(Math.random() * 156) + 100; // Ensure value is between 100 and 255
+  let g = Math.floor(Math.random() * 156) + 100; // Ensures brighter shades
+  let b = Math.floor(Math.random() * 156) + 100;
+
+  // Convert to hexadecimal and pad if necessary
+  const toHex = (value: number) => value.toString(16).padStart(2, '0');
+
+  // Combine to form a hex color string
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
 
 function normalizeVelocity(circle: Circle) {
   const speed = Math.sqrt(
@@ -68,6 +83,19 @@ function resolveCollision(circle1: Circle, circle2: Circle) {
   }
 }
 
+const isMouseOverCircle = (mouseX: number, mouseY: number) => {
+  for (const [circleIndex, circle] of circles.entries()) {
+    const dist = Math.sqrt(
+      (mouseX - circle.pos_x) ** 2 + (mouseY - circle.pos_y) ** 2
+    );
+    if (dist <= circle.radius) {
+      return circleIndex;
+    }
+  }
+
+  return -1;
+};
+
 function areCirclesIntersecting(c1: Circle, c2: Circle) {
   const dx = c2.pos_x - c1.pos_x; // Difference in x
   const dy = c2.pos_y - c2.pos_y; // Difference in y
@@ -77,13 +105,11 @@ function areCirclesIntersecting(c1: Circle, c2: Circle) {
   return distance <= c1.radius + c2.radius;
 }
 
-const drawPulsingCircle = (
-  context: CanvasRenderingContext2D,
-  circle: Circle
-) => {
+const drawCircle = (context: CanvasRenderingContext2D, circle: Circle) => {
   context.beginPath();
   // frameCount * 0.05 +
   context.arc(circle.pos_x, circle.pos_y, circle.radius, 0, 2 * Math.PI);
+  context.fillStyle = circle.color; // Set the color
   context.fill();
   context.closePath();
 };
@@ -105,24 +131,31 @@ export const Canvas = (props: any) => {
       if (ctx) {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-        // Draw vertical and horizontal grid lines
-        for (let x = 0; x <= ctx.canvas.width; x += gridSpacing) {
-          for (let y = 0; y <= ctx.canvas.height; y += gridSpacing) {
-            // Draw position ID
-            const posId = `(${x}, ${y})`;
-            ctx.fillStyle = 'black';
-            ctx.fillText(posId, x + 4, y + 4);
+        // // Draw vertical and horizontal grid lines
+        // for (let x = 0; x <= ctx.canvas.width; x += gridSpacing) {
+        //   for (let y = 0; y <= ctx.canvas.height; y += gridSpacing) {
+        //     // Draw position ID
+        //     const posId = `(${x}, ${y})`;
+        //     ctx.fillStyle = 'black';
+        //     ctx.fillText(posId, x + 4, y + 4);
 
-            // Draw grid lines
-            ctx.strokeStyle = '#ddd';
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, ctx.canvas.height);
-            ctx.moveTo(0, y);
-            ctx.lineTo(ctx.canvas.width, y);
-            ctx.stroke();
-          }
-        }
+        //     // Draw grid lines
+        //     ctx.strokeStyle = '#ddd';
+        //     ctx.beginPath();
+        //     ctx.moveTo(x, 0);
+        //     ctx.lineTo(x, ctx.canvas.height);
+        //     ctx.moveTo(0, y);
+        //     ctx.lineTo(ctx.canvas.width, y);
+        //     ctx.stroke();
+        //   }
+        // }
+        ctx.strokeStyle = '#ddd';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(ctx.canvas.width, 0);
+        ctx.moveTo(0, ctx.canvas.height);
+        ctx.lineTo(ctx.canvas.width, ctx.canvas.height);
+        ctx.stroke();
 
         ctx.fillStyle = '#000000';
         circles.forEach((c) => {
@@ -176,7 +209,7 @@ export const Canvas = (props: any) => {
           c.pos_x += c.vec_x;
           c.pos_y += c.vec_y;
 
-          drawPulsingCircle(ctx, c);
+          drawCircle(ctx, c);
         });
 
         // Check for collisions and resolve them
@@ -191,6 +224,7 @@ export const Canvas = (props: any) => {
         if (mPos.length > 1) {
           ctx.beginPath();
           ctx.arc(mPos[0], mPos[1], nextRadius, 0, 2 * Math.PI);
+          ctx.fillStyle = nextColor;
           ctx.fill();
           ctx.closePath();
         }
@@ -259,21 +293,47 @@ export const Canvas = (props: any) => {
   return (
     <canvas
       onMouseMove={(e) => {
-        mPos = [e.nativeEvent.offsetX, e.nativeEvent.offsetY];
+        let circleIndex = isMouseOverCircle(
+          e.nativeEvent.offsetX,
+          e.nativeEvent.offsetY
+        );
+
+        if (canvasRef.current) {
+          if (circleIndex > -1) {
+            canvasRef.current.style.cursor = 'pointer';
+            mPos = [];
+          } else {
+            canvasRef.current.style.cursor = 'default';
+            mPos = [e.nativeEvent.offsetX, e.nativeEvent.offsetY];
+          }
+        }
       }}
       onMouseOut={() => {
         mPos = [];
       }}
       onMouseDown={(e) => {
-        circles.push({
-          id: circles.length,
-          pos_x: e.nativeEvent.offsetX,
-          pos_y: e.nativeEvent.offsetY,
-          radius: nextRadius,
-          vec_x: Math.random() * 4 - 2,
-          vec_y: Math.random() * 4 - 2,
-        });
-        nextRadius = Math.random() * 20 + 2;
+        const index = isMouseOverCircle(
+          e.nativeEvent.offsetX,
+          e.nativeEvent.offsetY
+        );
+
+        if (index > -1) {
+          circles[index].vec_x = Math.random() * 10 - 1;
+          circles[index].vec_y = Math.random() * 10 - 1;
+        } else {
+          circles.push({
+            id: circles.length,
+            pos_x: e.nativeEvent.offsetX,
+            pos_y: e.nativeEvent.offsetY,
+            radius: nextRadius,
+            vec_x: Math.random() * 4 - 2,
+            vec_y: Math.random() * 4 - 2,
+            color: nextColor,
+          });
+
+          nextColor = getRandomBrightColor();
+          nextRadius = Math.random() * 20 + 10;
+        }
       }}
       width={'100%'}
       height={'100%'}

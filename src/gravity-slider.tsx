@@ -2,7 +2,7 @@ import { ChangeEventHandler } from 'react';
 import { gravityAtom } from './atoms/gravity-atom';
 import { useAtom } from 'jotai';
 
-export const GravitySlider = ({ min = -1, max = 1, step = 0.01 }) => {
+export const GravitySlider = ({ min = -0.1, max = 0.1, step = 0.001 }) => {
   const [gravity, setGravity] = useAtom(gravityAtom);
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
