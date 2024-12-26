@@ -7,6 +7,7 @@ let nextRadius = Math.random() * 20 + 10;
 let nextColor = getRandomBrightColor();
 let mPos: number[] = [];
 let circles: Circle[] = [];
+const vectorDrawScale = 12;
 
 type Circle = {
   id: number;
@@ -105,13 +106,60 @@ function areCirclesIntersecting(c1: Circle, c2: Circle) {
   return distance <= c1.radius + c2.radius;
 }
 
-const drawCircle = (context: CanvasRenderingContext2D, circle: Circle) => {
+const drawCircle = (
+  context: CanvasRenderingContext2D,
+  circle: Circle,
+  withVector?: boolean
+) => {
   context.beginPath();
   // frameCount * 0.05 +
   context.arc(circle.pos_x, circle.pos_y, circle.radius, 0, 2 * Math.PI);
   context.fillStyle = circle.color; // Set the color
   context.fill();
   context.closePath();
+
+  context.beginPath();
+  context.moveTo(circle.pos_x, circle.pos_y); // Start at the circle's center
+  context.lineTo(
+    circle.pos_x + circle.vec_x * vectorDrawScale, // End at the vector's direction
+    circle.pos_y + circle.vec_y * vectorDrawScale
+  );
+  context.strokeStyle = 'red'; // Set a distinct color for the vector
+  context.lineWidth = 2; // Set line thickness
+  context.stroke();
+  context.closePath();
+
+  const startX = circle.pos_x;
+  const startY = circle.pos_y;
+  const endX = circle.pos_x + circle.vec_x * vectorDrawScale;
+  const endY = circle.pos_y + circle.vec_y * vectorDrawScale;
+
+  const magnitude = Math.sqrt(
+    circle.vec_x * circle.vec_x + circle.vec_y * circle.vec_y
+  );
+
+  // Calculate the arrowhead
+  const arrowLength = (8 * magnitude) / 2; // Length of the arrowhead
+
+  // Angle of the vector
+  const angle = Math.atan2(endY - startY, endX - startX);
+
+  // Points for the arrowhead
+  const arrowPoint1X = endX - arrowLength * Math.cos(angle - Math.PI / 6);
+  const arrowPoint1Y = endY - arrowLength * Math.sin(angle - Math.PI / 6);
+  const arrowPoint2X = endX - arrowLength * Math.cos(angle + Math.PI / 6);
+  const arrowPoint2Y = endY - arrowLength * Math.sin(angle + Math.PI / 6);
+
+  if (magnitude) {
+    // Draw the arrowhead
+    context.beginPath();
+    context.moveTo(endX, endY); // Tip of the arrow
+    context.lineTo(arrowPoint1X, arrowPoint1Y); // Left side
+    context.lineTo(arrowPoint2X, arrowPoint2Y); // Right side
+    context.closePath();
+    context.fillStyle = 'red';
+    context.fill();
+  }
 };
 
 const groundFriction = 0.9; // Base horizontal friction when on the ground
@@ -209,7 +257,7 @@ export const Canvas = (props: any) => {
           c.pos_x += c.vec_x;
           c.pos_y += c.vec_y;
 
-          drawCircle(ctx, c);
+          drawCircle(ctx, c, true);
         });
 
         // Check for collisions and resolve them
