@@ -1,5 +1,5 @@
 import { ChangeEventHandler } from 'react';
-import { gravityAtom } from './atoms/gravity-atom';
+import { gravityAtom } from '../atoms/gravity-atom';
 import { useAtom } from 'jotai';
 
 export const GravitySlider = ({ min = -0.1, max = 0.1, step = 0.001 }) => {
